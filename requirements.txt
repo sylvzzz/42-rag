@@ -1,0 +1,13 @@
+accelerate
+bm25s
+fire
+flake8
+langchain-text-splitters
+mypy
+nocamel
+numpy
+pandas
+pydantic
+torch
+tqdm
+transformers
