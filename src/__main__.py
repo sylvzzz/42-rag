@@ -1,11 +1,12 @@
 from .chunking import create_chunks_for_code, create_chunks_for_text
 from .indexing import index_chunks
-from .models import MinimalSearchResults, MinimalSource
+from .models import MinimalSearchResults, MinimalSource, RagDataset, UnansweredQuestion, AnsweredQuestion
 import fire
 import json
 from pathlib import Path
 import bm25s
 import uuid
+from tqdm import tqdm
 
 
 INDEX_DIR = "data/processed/"
@@ -58,6 +59,30 @@ class RAG:
         # print(f"Results: {results.retrieved_sources}")
 
         return results
+
+    def search_dataset(self, dataset_path: str, k: int, save_directory: str) -> None:
+        with open(dataset_path, "r") as file:
+            data_questions = json.load(file).get("rag_questions", "")
+
+        rag_questions = self._dict_to_unanswered_object(data_questions)
+        data = RagDataset(rag_questions=rag_questions)
+
+        results = [self.search(q.question, k) for q in tqdm(data.rag_questions)]
+
+        path = Path(save_directory)
+        path.mkdir(exist_ok=True, parents=True)
+        out_file = Path(dataset_path).name
+
+        with open(path / out_file, mode="w", encoding="utf-8") as file:
+            json.dump(
+                {"search_results": [r.model_dump() for r in results]},
+                file,
+                indent=2,
+                ensure_ascii=False,
+            )
+
+    def _dict_to_unanswered_object(self, dataset: dict) -> RagDataset:
+        return [UnansweredQuestion.model_validate(m) for m in dataset]
 
     def _load_sources(self) -> list[MinimalSource]:
         with open(CHUNKS_FILE, "r") as file:
