@@ -25,3 +25,11 @@ curl -LsSf https://astral.sh/uv/install.sh
 
 make
 ```
+
+## Commands
+
+| Action | What it does | Arguments | Usage |
+| --- | --- | --- | --- |
+| index | Creates the chunks and saves the embeddings from the code base | ``` <max_chunk_size>``` | ```uv run python3 -m src index --max_chunk_size 2000``` |
+| search | Gets the top k sources from a query/prompt | ``` <query> <k>``` | ``` uv run python3 -m src search --query "What is this code base about?" --k 5``` |
+| search_dataset | Gets the top k sources from a set of queries/prompts and saves it in ```data/datasets/datasets_public/public/AnsweredQuestions``` in a json file of same name as the input file | ```<path> <int> <dir>``` | ``` uv run python3 -m src search_dataset -–dataset_path <path> -–k <int> -–save_directory <dir>``` |
