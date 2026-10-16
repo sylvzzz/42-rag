@@ -1,3 +1,7 @@
+class FatalError(Exception):
+    """Signals an already-logged error that must stop the current command."""
+
+
 class Logger:
     """Prints a message in a colour; every method is static."""
 

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 from pydantic import ValidationError
 
-from .logger import Logger
+from .logger import FatalError, Logger
 from .models import MinimalSource, StudentSearchResults
 
 K_VALUES = (1, 3, 5, 10)
@@ -98,39 +98,39 @@ def _load_ground_truth(
 
 
 def _read_json(path: str) -> Any:
-    """Read a JSON file, returning ``None`` on any read/parse error."""
+    """Read a JSON file, raising ``FatalError`` on any failure."""
     try:
         with open(path, encoding="utf-8") as file:
             return json.load(file)
-    except FileNotFoundError:
-        Logger.error(f"File not found: {path}")
+    except FileNotFoundError as e:
+        Logger.error(f"File not found: {path}.")
+        raise FatalError from e
     except json.JSONDecodeError as e:
-        Logger.error(f"Malformed JSON in {path}: {e}")
+        Logger.error(f"Malformed JSON in {path}")
+        raise FatalError from e
     except OSError as e:
-        Logger.error(f"Could not read {path}: {e}")
-    return None
+        Logger.error(f"Could not read {path}")
+        raise FatalError from e
 
 
 def report_recall(student_path: str, dataset_path: str) -> None:
     """Print recall@k of student results against the ground-truth dataset."""
     student_data = _read_json(student_path)
     dataset_data = _read_json(dataset_path)
-    if student_data is None or dataset_data is None:
-        return
 
     try:
         student = StudentSearchResults.model_validate(student_data)
     except ValidationError as e:
         Logger.error(f"Invalid student search results: {e}")
-        return
+        raise FatalError from e
 
     truth = _load_ground_truth(dataset_data)
     by_id = {result.question_id: result for result in student.search_results}
     by_text = {result.question: result for result in student.search_results}
 
     if truth and all(not correct for _, correct in truth.values()):
-        print("Warning: the ground truth has no sources.")
-        print("Did you pass the AnsweredQuestions dataset?")
+        Logger.warning("The ground truth has no sources.")
+        Logger.warning("Did you pass the AnsweredQuestions dataset?")
 
     scores: Dict[int, List[float]] = {k: [] for k in K_VALUES}
     for question_id, (question, correct) in truth.items():

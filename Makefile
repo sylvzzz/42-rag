@@ -15,7 +15,7 @@ index:
 	uv run python3 -m src index --max_chunk_size 2000
 
 search:
-	uv run python3 -m src search --query "Whats the project of the codebase" --k 1
+	uv run python3 -m src search --query "Whats is this codebase about?" --k 1
 
 search_dataset_docs:
 	uv run $(PY) -m src search_dataset --dataset_path data/datasets/UnansweredQuestions/dataset_docs_public.json --k 10 --save_directory data/output/search_results/UnansweredQuestions
@@ -24,7 +24,7 @@ search_dataset_code:
 	uv run $(PY) -m src search_dataset --dataset_path data/datasets/UnansweredQuestions/dataset_code_public.json --k 10 --save_directory data/output/search_results/UnansweredQuestions
 
 answer:
-	uv run $(PY) -m src answer --query "What HTTP endpoint loads a LoRA adapter?" --k 3
+	uv run $(PY) -m src answer --query "What is this codebase about?" --k abco
 
 answer_dataset_docs:
 	uv run $(PY) -m src answer_dataset --student_search_results_path data/output/search_results/UnansweredQuestions/dataset_docs_public.json --save_directory data/output/search_results_and_answer/UnansweredQuestions

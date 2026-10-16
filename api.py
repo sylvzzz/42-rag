@@ -1,6 +1,7 @@
 """Local HTTP API exposing the RAG pipeline (bonus part)."""
 from fastapi import FastAPI, HTTPException
 
+from src.logger import FatalError
 from src.rag import RAG
 
 app = FastAPI()
@@ -22,17 +23,14 @@ def root() -> dict[str, str]:
 @app.get("/index")
 def index(max_chunk_size: int = 2000) -> dict[str, str]:
     """(Re)build the corpus index."""
-    if max_chunk_size <= 0:
-        raise HTTPException(
-            status_code=400, detail="max_chunk_size must be positive"
-        )
     try:
         rag.index(max_chunk_size)
-    except (OSError, ValueError, RuntimeError) as e:
+    except (FatalError, OSError, ValueError, TypeError, RuntimeError) as e:
         raise HTTPException(
-            status_code=500, detail=f"Indexing failed: {e}"
+            status_code=500,
+            detail="Error encountered while indexing...",
         ) from e
-    return {"status": "indexed"}
+    return {"status": "Successfully indexed!"}
 
 
 @app.get("/answer")
@@ -44,8 +42,9 @@ def answer(prompt: str = "", k: int = 5) -> dict[str, str]:
         raise HTTPException(status_code=400, detail="k must be positive")
     try:
         text = rag.answer(query=prompt, k=k)
-    except (OSError, ValueError, RuntimeError) as e:
+    except (FatalError, OSError, ValueError, TypeError, RuntimeError) as e:
         raise HTTPException(
-            status_code=500, detail=f"Answering failed: {e}"
+            status_code=500,
+            detail="Error encountered while answering...",
         ) from e
     return {"answer": text}

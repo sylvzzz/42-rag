@@ -3,12 +3,14 @@ import sys
 
 import fire
 
-from .logger import Logger
+from .logger import FatalError, Logger
 from .rag import RAG
 
 if __name__ == "__main__":
     try:
         fire.Fire(RAG)
-    except (OSError, ValueError, RuntimeError, KeyError) as e:
+    except FatalError:
+        sys.exit(1)
+    except (OSError, ValueError, TypeError, RuntimeError, KeyError) as e:
         Logger.error(f"Error: {e}")
         sys.exit(1)

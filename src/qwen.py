@@ -7,6 +7,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from .models import MinimalSource
 
 MODEL_NAME = "Qwen/Qwen3-0.6B"
+MAX_CONTEXT_CHARS = 20000
 SYSTEM_PROMPT = (
     "You answer questions about the vLLM codebase using ONLY the provided "
     "sources. If the sources do not contain the answer, say you do not know. "
@@ -27,11 +28,17 @@ class Qwen:
 
     @staticmethod
     def format_sources(sources: List[MinimalSource]) -> str:
-        """Render the retrieved sources as a numbered context block."""
-        blocks = [
-            f"[{i + 1}] {source.file_path}\n{source.content}"
-            for i, source in enumerate(sources)
-        ]
+        """Render the sources as a numbered block within the context budget."""
+        blocks: List[str] = []
+        total = 0
+        for i, source in enumerate(sources):
+            block = f"[{i + 1}] {source.file_path}\n{source.content}"
+            if total + len(block) > MAX_CONTEXT_CHARS:
+                if not blocks:
+                    blocks.append(block[:MAX_CONTEXT_CHARS])
+                break
+            blocks.append(block)
+            total += len(block)
         return "\n\n".join(blocks)
 
     def answer(self, question: str, sources: List[MinimalSource]) -> str:
