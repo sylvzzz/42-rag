@@ -32,7 +32,7 @@ make
 | --- | --- | --- | --- |
 | index | Creates the chunks and saves the embeddings from the code base | ``` <max_chunk_size>``` | ```uv run python3 -m src index --max_chunk_size 2000``` |
 | search | Gets the top k sources from a query/prompt | ``` <query> <k>``` | ``` uv run python3 -m src search --query "What is this code base about?" --k 5``` |
-| search_dataset | Gets the top k sources from a set of queries/prompts and saves it in ```data/datasets/datasets_public/public/AnsweredQuestions``` in a json file of same name as the input file | ```<path> <int> <dir>``` | ``` uv run python3 -m src search_dataset -–dataset_path <path> -–k <int> -–save_directory <dir>``` |
+| search_dataset | Runs a search over a whole dataset and saves a `StudentSearchResults` JSON (same file name) under `--save_directory` | ```<path> <int> <dir>``` | ``` uv run python3 -m src search_dataset -–dataset_path <path> -–k <int> -–save_directory <dir>``` |
 | evaluate | Measures how good the retrieval was, by comparing your search results against the correct answers | ```<student_search_results> <dataset>``` | ```uv run python3 -m src evaluate --student_search_results_path <path> --dataset_path <path>``` |
 
 ## What does `evaluate` do?
@@ -90,48 +90,43 @@ For a dataset, the score is the average of these per-question values.
 
 ## Running the moulinette
 
-Rename the binary for your distro first (e.g. `mv moulinette-ubuntu moulinette`),
-then run:
+The moulinette is the official scorer (the provided binary).
+
+**1. Prepare the binary** (once) — pick the one for your distro and rename it to
+`moulinette`:
+
+```bash
+mv moulinette-ubuntu moulinette     # or: mv moulinette-fedora moulinette
+```
+
+**2. Score your results** — the **student results come first**, the
+**ground-truth `AnsweredQuestions` dataset second**:
 
 ```bash
 ./moulinette evaluate_student_search_results \
-  <student_search_results.json> <ground_truth_dataset.json> \
+  data/output/search_results/UnansweredQuestions/dataset_docs_public.json \
+  data/datasets/AnsweredQuestions/dataset_docs_public.json \
   --k 10 --max_context_length 2000 -t 0.8
 ```
 
-- The **first** file is your `search_dataset` output; the **second** is the
-  ground-truth dataset with the correct sources.
-- `-t 0.8` (docs) or `-t 0.5` (code) makes it print `PASS`/`FAIL` against the
-  threshold.
+| Flag | Meaning |
+| --- | --- |
+| `--k` | max sources per question (default 10) |
+| `--max_context_length` | max context characters per source (default 2000) |
+| `-t` | if set, checks Recall@5 against this value and prints `PASS`/`FAIL` |
 
-With the **public** datasets you need a small pre-step, because they ship in a
-different shape and use unrelated question ids: build a ground-truth file that
-uses **your** question ids, pairing the two datasets by order.
+The threshold is `-t 0.8` on docs and `-t 0.5` on code. The Makefile wraps the
+whole sequence (it also runs `search_dataset` first and auto-detects the binary,
+so the rename is optional there):
 
 ```bash
-DS=docs    # or: DS=code
-TH=0.8     # use 0.5 when DS=code
-uv run python - "$DS" <<'PY'
-import json, sys
-ds = sys.argv[1]
-base = "data/datasets/datasets_public/public"
-st = json.load(open(f"data/output/search_results/dataset_{ds}_public.json"))["search_results"]
-a  = json.load(open(f"{base}/AnsweredQuestions/dataset_{ds}_public.json"))["search_results"]
-gt = {"rag_questions": [
-        {"question_id": st[i]["question_id"], "question": st[i]["question"], "answer": "",
-         "sources": [{"file_path": s["file_path"],
-                      "first_character_index": s["first_character_index"],
-                      "last_character_index": s["last_character_index"]}
-                     for s in a[i]["retrieved_sources"]]}
-        for i in range(len(st))]}
-json.dump(gt, open(f"/tmp/{ds}_gt.json", "w"))
-PY
-
-./moulinette evaluate_student_search_results \
-  data/output/search_results/dataset_${DS}_public.json \
-  /tmp/${DS}_gt.json --k 10 --max_context_length 2000 -t ${TH}
+make search_dataset_docs && make moulinette_docs   # docs
+make search_dataset_code && make moulinette_code   # code
 ```
 
-During the defense no pre-step is needed: the official ground-truth already
-matches the questions you were given.
+The datasets live under `data/datasets/` (`UnansweredQuestions/` for the
+questions, `AnsweredQuestions/` for the ground truth) and every output is scoped
+by dataset under `data/output/search_results/<DatasetScope>/`, as required by
+the subject.
+
 
