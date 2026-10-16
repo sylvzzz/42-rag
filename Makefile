@@ -10,6 +10,15 @@ install:
 run:
 	uv run $(PY) -m src
 
+index:
+	uv run python3 -m src index --max_chunk_size 2000
+
+search:
+	uv run python3 -m src search --query "Whats the project of the codebase" --k 1
+
+search_dataset:
+	uv run $(PY) -m src search_dataset --dataset_path data/datasets/datasets_public/public/UnansweredQuestions/dataset_docs_public.json --k 2 --save_directory data/output/search_results/
+
 debug:
 	python3 -m pdb $(MAIN)
 
