@@ -1,54 +1,73 @@
+"""Chunk the raw vLLM corpus into MinimalSource pieces."""
 from pathlib import Path
-from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter, Language
+from typing import List, cast
+
+from langchain_text_splitters import (
+    Language,
+    RecursiveCharacterTextSplitter,
+)
+
 from .models import MinimalSource
 
+RAW_DIR = "data/raw/vllm-0.10.1"
 
-def create_chunks_for_text(chunk_size: int):
-    path = Path("data/raw/vllm-0.10.1")
-    valid_files = [".txt", ".md"]
-    chunks_created = []
 
-    for doc in path.rglob("*"):
-        if doc.is_file() and doc.suffix in valid_files:
-            documents = RecursiveCharacterTextSplitter(
-                chunk_overlap=0,
-                chunk_size=chunk_size,
-                add_start_index=True,
-                strip_whitespace=False
+def _chunks_from_file(doc: Path,
+                      splitter: RecursiveCharacterTextSplitter
+                      ) -> List[MinimalSource]:
+    """Split one file into MinimalSource chunks with character offsets."""
+    try:
+        text = doc.read_text()
+    except UnicodeDecodeError:
+        return []
+
+    results: List[MinimalSource] = []
+    for chunk in splitter.create_documents([text]):
+        start = int(chunk.metadata["start_index"])
+        results.append(
+            MinimalSource(
+                file_path=str(doc),
+                first_character_index=start,
+                last_character_index=len(chunk.page_content) + start,
+                content=chunk.page_content,
             )
-
-            chunks = documents.create_documents([doc.read_text()])
-            for chunk in chunks:
-                start_index = chunk.metadata["start_index"]
-                result = MinimalSource(file_path=str(doc),
-                                       first_character_index=start_index,
-                                       last_character_index=len(chunk.page_content) + start_index,
-                                       content=chunk.page_content)
-                chunks_created.append(result)
-
-    return chunks_created
+        )
+    return results
 
 
-def create_chunks_for_code(chunk_size: int):
-    path = Path("data/raw/vllm-0.10.1")
-    chunks_created = []
-    for doc in path.rglob("*"):
+def create_chunks_for_text(chunk_size: int) -> List[MinimalSource]:
+    """Chunk every .txt/.md file of the corpus."""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_overlap=0,
+        chunk_size=chunk_size,
+        add_start_index=True,
+        strip_whitespace=False,
+    )
+    valid = {".txt", ".md"}
+    return [
+        chunk
+        for doc in Path(RAW_DIR).rglob("*")
+        if doc.is_file() and doc.suffix in valid
+        for chunk in _chunks_from_file(doc, splitter)
+    ]
+
+
+def create_chunks_for_code(chunk_size: int) -> List[MinimalSource]:
+    """Chunk every .py file of the corpus.
+
+    The splitter is built with ``Language.PYTHON`` as the first positional
+    argument to reproduce the reference chunking exactly; the ground-truth
+    character offsets depend on it.
+    """
+    results: List[MinimalSource] = []
+    for doc in Path(RAW_DIR).rglob("*"):
         if doc.is_file() and doc.suffix == ".py":
-            documents = RecursiveCharacterTextSplitter(
-                Language.PYTHON,
+            splitter = RecursiveCharacterTextSplitter(
+                cast(List[str], Language.PYTHON),
                 chunk_overlap=0,
                 chunk_size=chunk_size,
                 add_start_index=True,
                 strip_whitespace=False,
             )
-
-            chunks = documents.create_documents([doc.read_text()])
-            for chunk in chunks:
-                start_index = chunk.metadata["start_index"]
-                result = MinimalSource(file_path=str(doc),
-                                       first_character_index=start_index,
-                                       last_character_index=len(chunk.page_content) + start_index,
-                                       content=chunk.page_content)
-                chunks_created.append(result)
-
-    return chunks_created
+            results.extend(_chunks_from_file(doc, splitter))
+    return results

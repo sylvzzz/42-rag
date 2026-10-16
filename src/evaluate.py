@@ -7,6 +7,9 @@ IoU strictly greater than 0.05.
 import json
 from typing import Any, Dict, List, Sequence, Tuple
 
+from pydantic import ValidationError
+
+from .logger import Logger
 from .models import MinimalSource, StudentSearchResults
 
 K_VALUES = (1, 3, 5, 10)
@@ -53,41 +56,75 @@ def _recall(
 
 
 def _parse_source(raw: Dict[str, Any]) -> MinimalSource:
-    """Build a MinimalSource from a ground-truth entry."""
+    """Build a MinimalSource from a ground-truth entry, tolerating gaps."""
+    try:
+        first = int(raw.get("first_character_index", 0))
+        last = int(raw.get("last_character_index", 0))
+    except (TypeError, ValueError):
+        first = last = 0
     return MinimalSource(
-        file_path=raw["file_path"],
-        first_character_index=raw["first_character_index"],
-        last_character_index=raw["last_character_index"],
-        content=raw.get("content", ""),
+        file_path=str(raw.get("file_path", "")),
+        first_character_index=first,
+        last_character_index=last,
+        content=str(raw.get("content", "")),
     )
 
 
 def _load_ground_truth(
-    data: Dict[str, Any],
+    data: Any,
 ) -> Dict[str, Tuple[str, List[MinimalSource]]]:
     """Map each ground-truth question id to its text and correct sources.
 
     Accepts both the ``rag_questions`` (AnsweredQuestion) layout and the
-    ``search_results`` reference layout.
+    ``search_results`` reference layout. Malformed entries are skipped.
     """
-    items = data.get("rag_questions") or data.get("search_results") or []
     truth: Dict[str, Tuple[str, List[MinimalSource]]] = {}
+    if not isinstance(data, dict):
+        return truth
+    items = data.get("rag_questions") or data.get("search_results") or []
+    if not isinstance(items, list):
+        return truth
     for item in items:
+        if not isinstance(item, dict) or item.get("question_id") is None:
+            continue
         sources = item.get("sources") or item.get("retrieved_sources") or []
-        truth[item["question_id"]] = (
-            item["question"],
-            [_parse_source(s) for s in sources],
+        if not isinstance(sources, list):
+            sources = []
+        truth[str(item["question_id"])] = (
+            str(item.get("question", "")),
+            [_parse_source(s) for s in sources if isinstance(s, dict)],
         )
     return truth
 
 
+def _read_json(path: str) -> Any:
+    """Read a JSON file, returning ``None`` on any read/parse error."""
+    try:
+        with open(path, encoding="utf-8") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        Logger.error(f"File not found: {path}")
+    except json.JSONDecodeError as e:
+        Logger.error(f"Malformed JSON in {path}: {e}")
+    except OSError as e:
+        Logger.error(f"Could not read {path}: {e}")
+    return None
+
+
 def report_recall(student_path: str, dataset_path: str) -> None:
     """Print recall@k of student results against the ground-truth dataset."""
-    with open(student_path, encoding="utf-8") as file:
-        student = StudentSearchResults.model_validate(json.load(file))
-    with open(dataset_path, encoding="utf-8") as file:
-        truth = _load_ground_truth(json.load(file))
+    student_data = _read_json(student_path)
+    dataset_data = _read_json(dataset_path)
+    if student_data is None or dataset_data is None:
+        return
 
+    try:
+        student = StudentSearchResults.model_validate(student_data)
+    except ValidationError as e:
+        Logger.error(f"Invalid student search results: {e}")
+        return
+
+    truth = _load_ground_truth(dataset_data)
     by_id = {result.question_id: result for result in student.search_results}
     by_text = {result.question: result for result in student.search_results}
 
