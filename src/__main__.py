@@ -1,6 +1,7 @@
 from .chunking import create_chunks_for_code, create_chunks_for_text
+from .evaluate import report_recall
 from .indexing import index_chunks
-from .models import MinimalSearchResults, MinimalSource, RagDataset, UnansweredQuestion, AnsweredQuestion
+from .models import MinimalSearchResults, MinimalSource, RagDataset, UnansweredQuestion, AnsweredQuestion, StudentSearchResults
 import fire
 import json
 from pathlib import Path
@@ -32,7 +33,8 @@ class RAG:
 
             json.dump(saved, file, indent=2)
 
-    def search(self, query: str, k: int) -> MinimalSearchResults:
+    def search(self, query: str, k: int,
+               question_id: str | None = None) -> MinimalSearchResults:
         sources = self._load_sources()
         if not sources:
             return []
@@ -50,9 +52,11 @@ class RAG:
             if score > 0
         ]
 
-        results = MinimalSearchResults(question_id=str(uuid.uuid4()),
-                                       question=query,
-                                       retrieved_sources=results_texts)
+        results = MinimalSearchResults(
+            question_id=question_id or str(uuid.uuid4()),
+            question=query,
+            retrieved_sources=results_texts,
+        )
 
 
         # print(f"QUESTION: {results.question}")
@@ -67,19 +71,20 @@ class RAG:
         rag_questions = self._dict_to_unanswered_object(data_questions)
         data = RagDataset(rag_questions=rag_questions)
 
-        results = [self.search(q.question, k) for q in tqdm(data.rag_questions)]
+        results = [self.search(q.question, k, q.question_id)
+                   for q in tqdm(data.rag_questions)]
 
         path = Path(save_directory)
         path.mkdir(exist_ok=True, parents=True)
         out_file = Path(dataset_path).name
 
         with open(path / out_file, mode="w", encoding="utf-8") as file:
-            json.dump(
-                {"search_results": [r.model_dump() for r in results]},
-                file,
-                indent=2,
-                ensure_ascii=False,
-            )
+            output = StudentSearchResults(search_results=results, k=k)
+            json.dump(output.model_dump(), file, indent=2, ensure_ascii=False)
+
+    def evaluate(self, student_search_results_path: str,
+                 dataset_path: str) -> None:
+        report_recall(student_search_results_path, dataset_path)
 
     def _dict_to_unanswered_object(self, dataset: dict) -> RagDataset:
         return [UnansweredQuestion.model_validate(m) for m in dataset]

@@ -16,8 +16,17 @@ index:
 search:
 	uv run python3 -m src search --query "Whats the project of the codebase" --k 1
 
-search_dataset:
-	uv run $(PY) -m src search_dataset --dataset_path data/datasets/datasets_public/public/UnansweredQuestions/dataset_docs_public.json --k 2 --save_directory data/output/search_results/
+search_dataset_docs:
+	uv run $(PY) -m src search_dataset --dataset_path data/datasets/datasets_public/public/UnansweredQuestions/dataset_docs_public.json --k 10 --save_directory data/output/search_results/
+
+search_dataset_code:
+	uv run $(PY) -m src search_dataset --dataset_path data/datasets/datasets_public/public/UnansweredQuestions/dataset_code_public.json --k 10 --save_directory data/output/search_results/
+
+evaluate_code:
+	uv run $(PY) -m src evaluate --student_search_results_path data/output/search_results/dataset_code_public.json --dataset_path data/datasets/datasets_public/public/AnsweredQuestions/dataset_code_public.json
+
+evaluate_docs:
+	uv run $(PY) -m src evaluate --student_search_results_path data/output/search_results/dataset_docs_public.json --dataset_path data/datasets/datasets_public/public/AnsweredQuestions/dataset_docs_public.json
 
 debug:
 	python3 -m pdb $(MAIN)
