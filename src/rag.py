@@ -28,7 +28,7 @@ CHUNKS_FILE = "data/processed/index.json"
 MIN_CHUNK_SIZE = 100
 MAX_CHUNK_SIZE = 2000
 MAX_K = 10
-MAX_ANSWER_SOURCES = 10
+MAX_ANSWER_SOURCES = 5
 MAX_QUERY_CHARS = 2000
 
 RUNTIME_ERRORS = (OSError, ValueError, TypeError, RuntimeError)

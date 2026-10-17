@@ -1,5 +1,4 @@
 FOLDER := $(shell pwd)
-MAIN = main.py
 VENV = $(FOLDER)/.venv
 REQ = requirements.txt
 PY = $(VENV)/bin/python
@@ -48,7 +47,7 @@ api:
 	uv run uvicorn api:app --reload
 
 debug:
-	python3 -m pdb $(MAIN)
+	uv run python -m pdb -m src
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
