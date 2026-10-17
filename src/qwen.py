@@ -19,7 +19,11 @@ class Qwen:
     """Answer questions from retrieved sources with Qwen/Qwen3-0.6B."""
 
     def __init__(self, model_name: str = MODEL_NAME) -> None:
-        """Load the tokenizer and model on CPU (downloads on first run)."""
+        """Load the tokenizer and model on CPU (downloads on first run).
+
+        Args:
+            model_name: Hugging Face id of the model to load.
+        """
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name, dtype=torch.float32
@@ -28,7 +32,14 @@ class Qwen:
 
     @staticmethod
     def format_sources(sources: List[MinimalSource]) -> str:
-        """Render the sources as a numbered block within the context budget."""
+        """Render the sources as a numbered block within the context budget.
+
+        Args:
+            sources: Sources to render, in order.
+
+        Returns:
+            The numbered blocks joined by blank lines.
+        """
         blocks: List[str] = []
         total = 0
         for i, source in enumerate(sources):
@@ -42,7 +53,18 @@ class Qwen:
         return "\n\n".join(blocks)
 
     def answer(self, question: str, sources: List[MinimalSource]) -> str:
-        """Generate an answer to ``question`` grounded in ``sources``."""
+        """Generate an answer to ``question`` grounded in ``sources``.
+
+        Args:
+            question: Question to answer.
+            sources: Retrieved sources used as the only context.
+
+        Returns:
+            The stripped answer text.
+
+        Raises:
+            RuntimeError: If generation fails inside transformers.
+        """
         user = (
             f"Sources:\n{self.format_sources(sources)}\n\n"
             f"Question: {question}"

@@ -15,7 +15,15 @@ RAW_DIR = "data/raw/vllm-0.10.1"
 def _chunks_from_file(doc: Path,
                       splitter: RecursiveCharacterTextSplitter
                       ) -> List[MinimalSource]:
-    """Split one file into MinimalSource chunks with character offsets."""
+    """Split one file into MinimalSource chunks with character offsets.
+
+    Args:
+        doc: File to read and split.
+        splitter: Configured text splitter.
+
+    Returns:
+        The chunks, or an empty list if the file is not valid UTF-8.
+    """
     try:
         text = doc.read_text()
     except UnicodeDecodeError:
@@ -36,7 +44,14 @@ def _chunks_from_file(doc: Path,
 
 
 def create_chunks_for_text(chunk_size: int) -> List[MinimalSource]:
-    """Chunk every .txt/.md file of the corpus."""
+    """Chunk every .txt/.md file of the corpus.
+
+    Args:
+        chunk_size: Maximum characters per chunk.
+
+    Returns:
+        The chunks of every text file under ``RAW_DIR``.
+    """
     splitter = RecursiveCharacterTextSplitter(
         chunk_overlap=0,
         chunk_size=chunk_size,
@@ -58,6 +73,12 @@ def create_chunks_for_code(chunk_size: int) -> List[MinimalSource]:
     The splitter is built with ``Language.PYTHON`` as the first positional
     argument to reproduce the reference chunking exactly; the ground-truth
     character offsets depend on it.
+
+    Args:
+        chunk_size: Maximum characters per chunk.
+
+    Returns:
+        The chunks of every Python file under ``RAW_DIR``.
     """
     results: List[MinimalSource] = []
     for doc in Path(RAW_DIR).rglob("*"):

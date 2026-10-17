@@ -17,7 +17,15 @@ IOU_THRESHOLD = 0.05
 
 
 def _overlap_ratio(correct: MinimalSource, found: MinimalSource) -> float:
-    """Return the IoU of the character spans of two sources."""
+    """Return the IoU of the character spans of two sources.
+
+    Args:
+        correct: Ground-truth source.
+        found: Retrieved source.
+
+    Returns:
+        The intersection-over-union of the two spans.
+    """
     start = max(correct.first_character_index, found.first_character_index)
     end = min(correct.last_character_index, found.last_character_index)
     inter = max(0, end - start)
@@ -31,7 +39,15 @@ def _overlap_ratio(correct: MinimalSource, found: MinimalSource) -> float:
 def _is_found(
     correct: MinimalSource, ranked: Sequence[MinimalSource]
 ) -> bool:
-    """Tell whether one correct source is covered by the ranked results."""
+    """Tell whether one correct source is covered by the ranked results.
+
+    Args:
+        correct: Ground-truth source.
+        ranked: Retrieved sources in rank order.
+
+    Returns:
+        True if a same-file source overlaps beyond the IoU threshold.
+    """
     for result in ranked:
         if result.file_path != correct.file_path:
             continue
@@ -45,7 +61,16 @@ def _recall(
     ranked: Sequence[MinimalSource],
     k: int,
 ) -> float:
-    """Return the share of correct sources found in the top-k results."""
+    """Return the share of correct sources found in the top-k results.
+
+    Args:
+        correct: Ground-truth sources of the question.
+        ranked: Retrieved sources in rank order.
+        k: Number of top results to consider.
+
+    Returns:
+        The recall in [0, 1], 1.0 when there is nothing to find.
+    """
     if not correct:
         return 1.0
     if not ranked:
@@ -56,7 +81,14 @@ def _recall(
 
 
 def _parse_source(raw: Dict[str, Any]) -> MinimalSource:
-    """Build a MinimalSource from a ground-truth entry, tolerating gaps."""
+    """Build a MinimalSource from a ground-truth entry, tolerating gaps.
+
+    Args:
+        raw: Raw ground-truth source dict.
+
+    Returns:
+        A source, defaulting missing or invalid fields to zero/empty.
+    """
     try:
         first = int(raw.get("first_character_index", 0))
         last = int(raw.get("last_character_index", 0))
@@ -77,6 +109,12 @@ def _load_ground_truth(
 
     Accepts both the ``rag_questions`` (AnsweredQuestion) layout and the
     ``search_results`` reference layout. Malformed entries are skipped.
+
+    Args:
+        data: Parsed dataset JSON.
+
+    Returns:
+        Mapping of question id to (question text, correct sources).
     """
     truth: Dict[str, Tuple[str, List[MinimalSource]]] = {}
     if not isinstance(data, dict):
@@ -98,7 +136,17 @@ def _load_ground_truth(
 
 
 def _read_json(path: str) -> Any:
-    """Read a JSON file, raising ``FatalError`` on any failure."""
+    """Read a JSON file, raising ``FatalError`` on any failure.
+
+    Args:
+        path: Path of the file to read.
+
+    Returns:
+        The parsed JSON content.
+
+    Raises:
+        FatalError: If the file is missing, malformed or unreadable.
+    """
     try:
         with open(path, encoding="utf-8") as file:
             return json.load(file)
@@ -114,7 +162,15 @@ def _read_json(path: str) -> Any:
 
 
 def report_recall(student_path: str, dataset_path: str) -> None:
-    """Print recall@k of student results against the ground-truth dataset."""
+    """Print recall@k of student results against the ground-truth dataset.
+
+    Args:
+        student_path: Path to the student search results JSON.
+        dataset_path: Path to the ground-truth dataset JSON.
+
+    Raises:
+        FatalError: If a file is missing or invalid.
+    """
     student_data = _read_json(student_path)
     dataset_data = _read_json(dataset_path)
 
