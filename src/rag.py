@@ -240,7 +240,7 @@ class RAG:
         except OSError as e:
             Logger.error(f"Could not write the chunks: {e}")
             raise FatalError from e
-        Logger.success(f"Saved {len(chunks)} sources to {CHUNKS_FILE}.")
+        Logger.success(f"Saving {len(chunks)} sources to {CHUNKS_FILE}...")
 
     @staticmethod
     def _answer_one(engine: Qwen,
