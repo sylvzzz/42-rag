@@ -23,7 +23,7 @@ search_dataset_code:
 	uv run $(PY) -m src search_dataset --dataset_path data/datasets/UnansweredQuestions/dataset_code_public.json --k 10 --save_directory data/output/search_results/UnansweredQuestions
 
 answer:
-	uv run $(PY) -m src answer --query "What is this codebase about?" --k abco
+	uv run $(PY) -m src answer --query "What is this codebase about?" --k 3
 
 answer_dataset_docs:
 	uv run $(PY) -m src answer_dataset --student_search_results_path data/output/search_results/UnansweredQuestions/dataset_docs_public.json --save_directory data/output/search_results_and_answer/UnansweredQuestions
@@ -38,10 +38,10 @@ evaluate_docs:
 	uv run $(PY) -m src evaluate --student_search_results_path data/output/search_results/UnansweredQuestions/dataset_docs_public.json --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json
 
 moulinette_docs:
-	$(MOULINETTE) evaluate_student_search_results data/output/search_results/UnansweredQuestions/dataset_docs_public.json data/datasets/AnsweredQuestions/dataset_docs_public.json --k 10 --max_context_length 2000 -t 0.8
+	$(MOULINETTE) evaluate_student_search_results data/output/search_results/UnansweredQuestions/dataset_docs_public.json data/datasets/AnsweredQuestions/dataset_docs_public.json --k 10 --max_context_length 2000
 
 moulinette_code:
-	$(MOULINETTE) evaluate_student_search_results data/output/search_results/UnansweredQuestions/dataset_code_public.json data/datasets/AnsweredQuestions/dataset_code_public.json --k 10 --max_context_length 2000 -t 0.5
+	$(MOULINETTE) evaluate_student_search_results data/output/search_results/UnansweredQuestions/dataset_code_public.json data/datasets/AnsweredQuestions/dataset_code_public.json --k 10 --max_context_length 2000
 
 api:
 	uv run uvicorn api:app --reload
