@@ -5,7 +5,7 @@ PY = $(VENV)/bin/python
 MOULINETTE := $(shell if [ -x ./moulinette ]; then echo ./moulinette; elif [ -x ./moulinette-ubuntu ]; then echo ./moulinette-ubuntu; else echo ./moulinette-fedora; fi)
 
 install:
-	uv sync
+	uv sync; cd web npm install
 
 run:
 	uv run $(PY) -m src
@@ -45,6 +45,9 @@ moulinette_code:
 
 api:
 	uv run uvicorn api:app --reload
+
+ui:
+	cd web && npm run dev
 
 debug:
 	uv run python -m pdb -m src

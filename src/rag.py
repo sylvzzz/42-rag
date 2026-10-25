@@ -1,5 +1,7 @@
 """Retrieval-Augmented Generation pipeline."""
 import json
+import re
+import shutil
 import threading
 import uuid
 from pathlib import Path
@@ -21,7 +23,7 @@ from .models import (
     StudentSearchResultsAndAnswer,
     UnansweredQuestion,
 )
-from .qwen import Qwen
+from .qwen import Model
 
 CHUNKS_FILE = "data/processed/index.json"
 
@@ -33,6 +35,9 @@ MAX_QUERY_CHARS = 2000
 
 RUNTIME_ERRORS = (OSError, ValueError, TypeError, RuntimeError)
 NUMBER_ERRORS = (TypeError, ValueError, OverflowError)
+CV_QUERY = re.compile(
+    r"\b(?:curr[íi]culo|curriculum|resume)\b", re.IGNORECASE
+)
 
 
 class RAG:
@@ -42,7 +47,7 @@ class RAG:
         """Set up the pipeline with a lazily-loaded index and sources."""
         self._bm25: bm25s.BM25 | None = None
         self._sources: List[MinimalSource] | None = None
-        self._engine: Qwen | None = None
+        self._engine: Model | None = None
         self._engine_lock = threading.Lock()
 
     def index(self, max_chunk_size: int = 2000) -> None:
@@ -79,6 +84,52 @@ class RAG:
         self._bm25 = None
         Logger.success(f"Successfully indexed {len(total_chunks)} chunks!")
 
+    def delete_file(self, file_path: str) -> None:
+        """Delete a file and rebuild the index without its chunks.
+
+        Args:
+            file_path: Path of the file to remove.
+
+        Raises:
+            FatalError: If the file or the index cannot be updated.
+        """
+        try:
+            Path(file_path).unlink(missing_ok=True)
+        except OSError as e:
+            Logger.error(f"Could not delete the file: {e}")
+            raise FatalError from e
+
+        chunks_path = Path(CHUNKS_FILE)
+        remaining: List[MinimalSource] = []
+        if chunks_path.exists():
+            data = self._read_json(CHUNKS_FILE)
+            if isinstance(data, list):
+                for item in data:
+                    try:
+                        chunk = MinimalSource.model_validate(item)
+                    except ValidationError:
+                        continue
+                    if chunk.file_path != file_path:
+                        remaining.append(chunk)
+
+        self._sources = None
+        self._bm25 = None
+        if not remaining:
+            try:
+                chunks_path.unlink(missing_ok=True)
+                shutil.rmtree(INDEX_DIR, ignore_errors=True)
+            except OSError as e:
+                Logger.error(f"Could not clear the index: {e}")
+                raise FatalError from e
+            return
+
+        try:
+            self._save_chunks(remaining)
+            index_chunks(remaining)
+        except RUNTIME_ERRORS as e:
+            Logger.error(f"Indexing failed: {e}")
+            raise FatalError from e
+
     def search(self, query: str, k: int,
                question_id: str | None = None) -> MinimalSearchResults:
         """Return the top-k sources for a single query.
@@ -111,7 +162,8 @@ class RAG:
         k = min(clean_k, len(sources))
         try:
             bm25 = self._load_index()
-            query_tokens = bm25s.tokenize(query, show_progress=False)
+            search_query = CV_QUERY.sub("cv", query)
+            query_tokens = bm25s.tokenize(search_query, show_progress=False)
             indices, scores = bm25.retrieve(
                 query_tokens, k=k, show_progress=False
             )
@@ -168,12 +220,14 @@ class RAG:
         """
         report_recall(student_search_results_path, dataset_path)
 
-    def answer(self, query: str, k: int) -> str:
+    def answer(self, query: str, k: int,
+               history: List[dict[str, Any]] | None = None) -> str:
         """Answer a single query from the retrieved sources.
 
         Args:
             query: Question to answer.
             k: Maximum number of sources to retrieve.
+            history: Previous chat messages used as conversation context.
 
         Returns:
             The generated answer, or a fallback message when empty.
@@ -187,14 +241,15 @@ class RAG:
         clean_k = self._clean_k(k)
         query = self._truncate_query(query)
 
-        results = self.search(query, clean_k)
-        if not results.retrieved_sources:
-            Logger.warning("No sources found; not calling the model.")
-            return "No relevant sources were found for this question."
-
-        sources = results.retrieved_sources[:MAX_ANSWER_SOURCES]
         try:
-            return self._load_engine().answer(query, sources)
+            sources = self.search(query, clean_k).retrieved_sources
+        except (FatalError, *RUNTIME_ERRORS):
+            Logger.warning("Search unavailable; answering without sources.")
+            sources = []
+
+        sources = sources[:MAX_ANSWER_SOURCES]
+        try:
+            return self._load_engine().answer(query, sources, history)
         except RUNTIME_ERRORS as e:
             Logger.error(f"Answer generation failed: {e}")
             raise FatalError from e
@@ -333,12 +388,12 @@ class RAG:
         Logger.success(f"Saving {len(chunks)} sources to {CHUNKS_FILE}...")
 
     @staticmethod
-    def _answer_one(engine: Qwen,
+    def _answer_one(engine: Model,
                     result: MinimalSearchResults) -> MinimalAnswer:
         """Build a MinimalAnswer for one search result, never raising.
 
         Args:
-            engine: Loaded Qwen engine used to generate the answer.
+            engine: Loaded answer engine used to generate the answer.
             result: One question with its retrieved sources.
 
         Returns:
@@ -450,15 +505,15 @@ class RAG:
             self._bm25 = bm25
         return bm25
 
-    def _load_engine(self) -> Qwen:
-        """Load (once) and return the Qwen answer engine.
+    def _load_engine(self) -> Model:
+        """Load (once) and return the answer engine.
 
         Returns:
-            The shared, thread-safe Qwen instance.
+            The shared, thread-safe Model instance.
         """
         with self._engine_lock:
             if self._engine is None:
-                self._engine = Qwen()
+                self._engine = Model()
         return self._engine
 
     def _load_sources(self) -> List[MinimalSource]:

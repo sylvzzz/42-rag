@@ -11,3 +11,4 @@ pydantic
 torch
 tqdm
 transformers
+openai

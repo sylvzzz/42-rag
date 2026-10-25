@@ -1,0 +1,42 @@
+{
+  "chats": [
+    {
+      "chat_id": "c1a7e3f2-9b42-4d8c-b2a5-02f94c81e76d",
+      "title": "Como funciona o projeto?",
+      "created_at": "2025-10-16T10:15:00Z",
+      "updated_at": "2025-10-16T10:16:30Z"
+    },
+    {
+      "chat_id": "7e62b8a4-85fd-4c31-8d92-7ab903f6c421",
+      "title": "BM25 vs embeddings",
+      "created_at": "2025-10-16T11:20:00Z",
+      "updated_at": "2025-10-16T11:21:45Z"
+    }
+  ],
+  "messages": {
+    "c1a7e3f2-9b42-4d8c-b2a5-02f94c81e76d": [
+      {
+        "role": "user",
+        "content": "Como funciona o projeto?",
+        "created_at": "2025-10-16T10:15:00Z"
+      },
+      {
+        "role": "assistant",
+        "content": "O projeto é um sistema RAG que indexa documentos, faz busca BM25 e responde usando um modelo.",
+        "created_at": "2025-10-16T10:16:30Z"
+      }
+    ],
+    "7e62b8a4-85fd-4c31-8d92-7ab903f6c421": [
+      {
+        "role": "user",
+        "content": "BM25 vs embeddings",
+        "created_at": "2025-10-16T11:20:00Z"
+      },
+      {
+        "role": "assistant",
+        "content": "BM25 é busca lexical (termos), embeddings são busca semântica (vetores). Neste projeto usa-se BM25.",
+        "created_at": "2025-10-16T11:21:45Z"
+      }
+    ]
+  }
+}
