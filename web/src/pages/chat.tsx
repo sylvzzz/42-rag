@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import TextareaAutosize from "react-textarea-autosize"
-import { Send, Plus, MessageSquare, Trash2, UploadIcon } from "lucide-react"
+import { Send, Plus, MessageSquare, Trash2, UploadIcon, ChevronDown, ChevronUp } from "lucide-react"
 import {
   InputGroup,
   InputGroupAddon,
@@ -23,7 +23,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { askQuestion, getChats, getChat, deleteChat, type Chat, type ChatMessage } from "@/lib/api"
+import { askQuestion, getChats, getChat, deleteChat, searchSources, type Chat, type ChatMessage } from "@/lib/api"
 import { ModeToggle } from "@/components/theme/mode-toggle"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -190,23 +190,250 @@ function AppSidebar({
   )
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
-  const isUser = message.role === "user"
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setReduced(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches)
+    mq.addEventListener?.("change", handler)
+    return () => mq.removeEventListener?.("change", handler)
+  }, [])
+  return reduced
+}
+
+function SourcesBlock({
+  sources,
+  status,
+  isExpanded,
+  onToggle,
+}: {
+  sources: Array<{ document_id: string; file_path?: string; count?: number; original_name?: string }>
+  status: "reading" | "read" | "hidden"
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  if (status === "hidden") return null
+  const files = (sources || []).filter(Boolean)
+  if (files.length === 0 && status === "read") return null
+  if (files.length === 0 && status === "reading") {
+    return (
+      <div className="flex w-full justify-start mb-2">
+        <div className="max-w-[80%] md:max-w-[70%] w-full">
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="animate-pulse">Reading files...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
-    <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
+    <div className="flex w-full justify-start mb-2">
+      <div className="max-w-[80%] md:max-w-[70%] w-full">
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {status === "reading" ? (
+            <div className="flex items-center gap-2">
+              <span className="animate-pulse">Reading files...</span>
+            </div>
+          ) : (
+            <div>
+              <button onClick={onToggle} className="flex w-full items-center justify-between gap-2 hover:text-foreground">
+                <span>Read {files.length} file{files.length === 1 ? "" : "s"}</span>
+                {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+              {isExpanded && (
+                <div className="mt-2 space-y-1">
+                      {files.map((f, idx) => {
+                    const docId = f.document_id || (f.file_path ? f.file_path.split('/').pop() : undefined)
+                    const name = f.original_name || docId || (f.file_path ? f.file_path.split('/').pop() : "")
+                    return (
+                      <div key={idx} className="flex items-center">
+                        {docId ? (
+                          <a
+                            href={`${API_BASE_URL}/documents/${encodeURIComponent(docId)}/raw`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate hover:underline text-foreground/80"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {name}
+                          </a>
+                        ) : (
+                          <span className="truncate">{name}</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RevealingMessage({ fullContent, messageId }: { fullContent: string; messageId?: string }) {
+  const reduced = usePrefersReducedMotion()
+  const key = messageId || fullContent
+  const [hasRevealed, setHasRevealed] = useState(() => {
+    try {
+      if (typeof window === "undefined") return false
+      return localStorage.getItem(`revealed:${key}`) === "1"
+    } catch {
+      return false
+    }
+  })
+  const [revealed, setRevealed] = useState(reduced || hasRevealed ? fullContent : "")
+  const bufferRef = useRef(fullContent)
+  const revealedRef = useRef(reduced || hasRevealed ? fullContent : "")
+  const queueRef = useRef<string[]>([])
+  const timerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    bufferRef.current = fullContent
+  }, [fullContent])
+
+  useEffect(() => {
+    if (reduced || hasRevealed) {
+      setRevealed(fullContent)
+      revealedRef.current = fullContent
+      queueRef.current = []
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      try {
+        if (typeof window !== "undefined" && messageId) {
+          localStorage.setItem(`revealed:${messageId}`, "1")
+        }
+      } catch {}
+      return
+    }
+    if (fullContent && revealedRef.current.length === 0 && fullContent.length > 0) {
+      const tokens = fullContent.match(/\S+|\s+/g)
+      if (tokens) {
+        queueRef.current = [...tokens]
+      } else {
+        queueRef.current = [fullContent]
+      }
+    } else if (fullContent.length > revealedRef.current.length) {
+      const newText = fullContent.slice(revealedRef.current.length)
+      const tokens = newText.match(/\S+|\s+/g)
+      if (tokens) {
+        queueRef.current.push(...tokens)
+      } else if (newText) {
+        queueRef.current.push(newText)
+      }
+    } else if (fullContent.length === 0) {
+      queueRef.current = []
+      revealedRef.current = ""
+      setRevealed("")
+    }
+  }, [fullContent, reduced, hasRevealed, messageId])
+
+  useEffect(() => {
+    if (reduced || hasRevealed) return
+    if (timerRef.current) return
+    timerRef.current = window.setInterval(() => {
+      if (queueRef.current.length === 0) {
+        if (revealedRef.current.length < fullContent.length) {
+          revealedRef.current = fullContent
+          setRevealed(fullContent)
+          queueRef.current = []
+          if (timerRef.current) {
+            window.clearInterval(timerRef.current)
+            timerRef.current = null
+          }
+          try {
+            if (typeof window !== "undefined" && messageId) {
+              localStorage.setItem(`revealed:${messageId}`, "1")
+            }
+          } catch {}
+          return
+        }
+        if (timerRef.current) {
+          window.clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+        try {
+          if (typeof window !== "undefined" && messageId && revealedRef.current.length > 0) {
+            localStorage.setItem(`revealed:${messageId}`, "1")
+          }
+        } catch {}
+        return
+      }
+      const batch = queueRef.current.length > 80 ? 4 : queueRef.current.length > 40 ? 3 : queueRef.current.length > 20 ? 2 : 1
+      for (let i = 0; i < batch && queueRef.current.length > 0; i++) {
+        const token = queueRef.current.shift()!
+        revealedRef.current += token
+      }
+      setRevealed(revealedRef.current)
+    }, 25)
+    return () => {
+      if (timerRef.current) {
+        window.clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [fullContent, reduced, hasRevealed, messageId])
+
+  useEffect(() => {
+    if (!reduced && !hasRevealed && revealedRef.current.length === fullContent.length && fullContent.length > 0) {
+      setHasRevealed(true)
+      try {
+        if (typeof window !== "undefined" && messageId) {
+          localStorage.setItem(`revealed:${messageId}`, "1")
+        }
+      } catch {}
+    }
+  }, [revealed, fullContent, reduced, hasRevealed, messageId])
+
+  if (reduced || hasRevealed) {
+    return <Markdown remarkPlugins={[remarkGfm]}>{fullContent}</Markdown>
+  }
+  return <Markdown remarkPlugins={[remarkGfm]}>{revealed || ""}</Markdown>
+}
+
+function MessageBubble({ message, messageKey }: { message: ChatMessage & { sources?: any[], sourcesStatus?: string, sourcesExpanded?: boolean, onToggleSources?: () => void }, messageKey?: string }) {
+  const isUser = message.role === "user"
+  if (isUser) {
+    return (
+      <div className={cn("flex w-full", "justify-end")}>
+        <div
+          className={cn(
+            "max-w-[80%] rounded-lg px-4 py-2 text-sm md:max-w-[70%] break-words",
+            "bg-primary text-primary-foreground whitespace-pre-wrap"
+          )}
+        >
+          {message.content}
+        </div>
+      </div>
+    )
+  }
+  const showSources = message.sourcesStatus && message.sourcesStatus !== "hidden" && Array.isArray(message.sources) && message.sources.length > 0
+  return (
+    <div className="flex w-full justify-start flex-col items-start">
+      {showSources && (
+        <SourcesBlock
+          sources={message.sources || []}
+          status={message.sourcesStatus as any}
+          isExpanded={!!message.sourcesExpanded}
+          onToggle={() => message.onToggleSources?.()}
+        />
+      )}
       <div
         className={cn(
           "max-w-[80%] rounded-lg px-4 py-2 text-sm md:max-w-[70%] break-words",
-          isUser
-            ? "bg-primary text-primary-foreground whitespace-pre-wrap"
-            : "bg-muted text-muted-foreground markdown"
+          "bg-muted text-muted-foreground markdown"
         )}
       >
-        {isUser ? (
-          message.content
-        ) : (
-          <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
-        )}
+        <RevealingMessage fullContent={message.content} messageId={messageKey} />
       </div>
     </div>
   )
@@ -259,7 +486,23 @@ export function ChatApp() {
     setIsLoadingMessages(true)
     try {
       const res = await getChat(chatId)
-      setMessages(res.messages)
+      const loaded = (res.messages || []).map((m: any, idx: number) => {
+        if (m.role === "assistant") {
+          // Try to restore sources if stored
+          return {
+            ...m,
+            sourcesStatus: m.sources && Array.isArray(m.sources) && m.sources.length > 0 ? "read" : "hidden",
+            sourcesExpanded: false,
+            sources: m.sources || [],
+          }
+        }
+        return {
+          ...m,
+          sourcesStatus: "hidden",
+          sourcesExpanded: false,
+        }
+      })
+      setMessages(loaded)
       setCurrentChatId(chatId)
     } catch (error) {
       console.error("Failed to load chat:", error)
@@ -303,20 +546,136 @@ export function ChatApp() {
     setMessages((prev) => [...prev, userMessage])
     setIsSending(true)
 
+      // Create placeholder assistant message with sources state
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "",
+          sources: [],
+          sourcesStatus: "reading",
+          sourcesExpanded: false,
+        } as any,
+      ])
+
     try {
+      // Step 1: search to get sources first
+      let sourcesData: any = { sources: [], chunks: [] }
+      try {
+        sourcesData = await searchSources(text, 5)
+      } catch (e) {
+        // Fallback to getting from answer if search fails
+        sourcesData = { sources: [], chunks: [] }
+      }
+      const sources = sourcesData.sources || []
+
+      if (sources.length === 0) {
+        // No relevant files - don't show sources block
+        setMessages((prev) => {
+          const updated = [...prev]
+          const lastIdx = updated.length - 1
+          if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+            updated[lastIdx] = {
+              ...updated[lastIdx],
+              sources: [],
+              sourcesStatus: "hidden",
+              sourcesExpanded: false,
+            } as any
+          }
+          return updated
+        })
+        // Small pause or skip - but requirement says show sources only if exist; if none, don't show
+        await new Promise((r) => setTimeout(r, 400))
+      } else {
+        // Show reading state, then reveal files one by one
+        setMessages((prev) => {
+          const updated = [...prev]
+          const lastIdx = updated.length - 1
+          if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+            updated[lastIdx] = {
+              ...updated[lastIdx],
+              sources: [],
+              sourcesStatus: "reading",
+            } as any
+          }
+          return updated
+        })
+
+        // Reveal files one by one with small delays
+        for (let i = 0; i < sources.length; i++) {
+          await new Promise((r) => setTimeout(r, 150))
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.length - 1
+            if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                sources: sources.slice(0, i + 1),
+                sourcesStatus: "reading",
+              } as any
+            }
+            return updated
+          })
+        }
+
+        // Mark as read
+        setMessages((prev) => {
+          const updated = [...prev]
+          const lastIdx = updated.length - 1
+          if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+            updated[lastIdx] = {
+              ...updated[lastIdx],
+              sources: sources,
+              sourcesStatus: "read",
+              sourcesExpanded: false,
+            } as any
+          }
+          return updated
+        })
+
+        // Pause 1-2 seconds so user can register
+        const pause = Math.max(1000, Math.min(2000, 1200 + (sources.length * 50)))
+        await new Promise((r) => setTimeout(r, pause))
+      }
+
+      // Step 2: get answer
       const res = await askQuestion(text, currentChatId)
-      const assistantMessage: ChatMessage = { role: "assistant", content: res.answer }
-      setMessages((prev) => [...prev, assistantMessage])
       if (!currentChatId || currentChatId !== res.chat_id) {
         setCurrentChatId(res.chat_id)
       }
       await loadChats()
+
+      // Collapse sources into compact summary (already in read state, user can expand)
+      setMessages((prev) => {
+        const updated = [...prev]
+        const lastIdx = updated.length - 1
+        if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+          const finalSources = sources.length > 0 ? sources : (res.sources || [])
+          updated[lastIdx] = {
+            ...updated[lastIdx],
+            content: res.answer,
+            sources: finalSources,
+            sourcesStatus: finalSources.length > 0 ? "read" : "hidden",
+            sourcesExpanded: false,
+          } as any
+        }
+        return updated
+      })
     } catch (error) {
       const errorMessage: ChatMessage = {
         role: "assistant",
         content: "Sorry, I encountered an error. Please try again.",
-      }
-      setMessages((prev) => [...prev, errorMessage])
+      } as any
+      setMessages((prev) => {
+        // Replace last assistant placeholder if exists
+        const updated = [...prev]
+        const lastIdx = updated.length - 1
+        if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+          updated[lastIdx] = errorMessage
+          return updated
+        }
+        return [...updated, errorMessage]
+      })
     } finally {
       setIsSending(false)
     }
@@ -361,16 +720,34 @@ export function ChatApp() {
                   </div>
                 ) : (
                   messages.map((message, idx) => (
-                    <MessageBubble key={idx} message={message} />
+                    <MessageBubble
+                      key={`${currentChatId || "new"}-${idx}`}
+                      messageKey={`${currentChatId || "new"}-${idx}`}
+                      message={{
+                        ...message,
+                        onToggleSources: () => {
+                          setMessages((prev) => {
+                            const updated = [...prev]
+                            if (updated[idx] && updated[idx].role === "assistant") {
+                              updated[idx] = {
+                                ...updated[idx],
+                                sourcesExpanded: !updated[idx].sourcesExpanded,
+                              } as any
+                            }
+                            return updated
+                          })
+                        },
+                      }}
+                    />
                   ))
                 )}
-                {isSending && (
+                {isSending && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 1]?.content ? null : isSending ? (
                   <div className="flex justify-start">
                     <div className="bg-muted max-w-[80%] rounded-lg px-4 py-2 text-sm">
                       Thinking...
                     </div>
                   </div>
-                )}
+                ) : null}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>

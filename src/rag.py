@@ -254,6 +254,31 @@ class RAG:
             Logger.error(f"Answer generation failed: {e}")
             raise FatalError from e
 
+    def get_sources_info(self, query: str, k: int) -> list[dict[str, Any]]:
+        """Return information about retrieved files for display."""
+        if not query.strip():
+            return []
+        clean_k = self._clean_k(k)
+        query_clean = self._truncate_query(query)
+        try:
+            sources = self.search(query_clean, clean_k).retrieved_sources
+        except (FatalError, *RUNTIME_ERRORS):
+            return []
+        sources = sources[:MAX_ANSWER_SOURCES]
+        # Count chunks per file
+        file_counts: dict[str, int] = {}
+        for s in sources:
+            file_counts[s.file_path] = file_counts.get(s.file_path, 0) + 1
+        # Build result with file info
+        result = []
+        for fp, count in file_counts.items():
+            result.append({
+                "file_path": fp,
+                "document_id": Path(fp).name,
+                "count": count,
+            })
+        return result
+
     def answer_dataset(self, student_search_results_path: str,
                        save_directory: str) -> None:
         """Generate answers for a dataset and save them as JSON.

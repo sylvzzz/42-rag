@@ -23,6 +23,7 @@ SYSTEM_PROMPT = (
     "understand follow-up questions. If the sources do not contain the "
     "answer, say you do not know instead of making it up. You may reply "
     "normally to greetings and small talk. Be concise."
+    "Answer in the same language as the user prompt"
 )
 
 

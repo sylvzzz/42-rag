@@ -84,7 +84,7 @@ def delete_chat(chat_id: str) -> None:
         _write(data)
 
 
-def append_exchange(chat_id: str | None, prompt: str, answer: str) -> str:
+def append_exchange(chat_id: str | None, prompt: str, answer: str, sources: list | None = None) -> str:
     """Append a user/assistant exchange and return the chat id."""
     with _lock:
         data = _read()
@@ -125,7 +125,7 @@ def append_exchange(chat_id: str | None, prompt: str, answer: str) -> str:
             {"role": "user", "content": prompt, "created_at": now}
         )
         history.append(
-            {"role": "assistant", "content": answer, "created_at": now}
+            {"role": "assistant", "content": answer, "created_at": now, "sources": sources or []}
         )
         _write(data)
     return chat_id

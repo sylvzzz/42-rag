@@ -321,10 +321,41 @@ def chat_del(chat_id: str) -> dict:
     return {"status": "ok"}
 
 
+@app.get("/search")
+def search_endpoint(prompt: str = "", k: int = 5) -> dict[str, Any]:
+    if not prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt must not be empty")
+    if k <= 0:
+        raise HTTPException(status_code=400, detail="k must be positive")
+    try:
+        sources_info = rag.get_sources_info(query=prompt, k=k)
+        # Enrich with original names
+        for s in sources_info:
+            doc_id = s.get("document_id") or Path(s.get("file_path", "")).name
+            try:
+                s["original_name"] = _original_name(doc_id)
+            except Exception:
+                pass
+        # Also return full chunk info if needed
+        res = rag.search(prompt, k)
+        chunks = []
+        for s in res.retrieved_sources[:5]:
+            chunks.append({
+                "file_path": s.file_path,
+                "document_id": Path(s.file_path).name,
+                "content": s.content,
+                "first_character_index": s.first_character_index,
+                "last_character_index": s.last_character_index,
+            })
+        return {"sources": sources_info, "chunks": chunks}
+    except (FatalError, OSError, ValueError, TypeError, RuntimeError) as e:
+        raise HTTPException(status_code=500, detail="Error encountered while searching...") from e
+
+
 @app.get("/answer")
 def answer(
     prompt: str = "", k: int = 5, chat_id: str = ""
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Answer a question using the RAG pipeline and save the exchange."""
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="prompt must not be empty")
@@ -338,11 +369,18 @@ def answer(
             if isinstance(messages, list):
                 history = messages
     try:
+        sources_info = rag.get_sources_info(query=prompt, k=k)
+        for s in sources_info:
+            doc_id = s.get("document_id") or Path(s.get("file_path", "")).name
+            try:
+                s["original_name"] = _original_name(doc_id)
+            except Exception:
+                pass
         text = rag.answer(query=prompt, k=k, history=history)
-        chat_id = append_exchange(chat_id, prompt, text)
+        chat_id = append_exchange(chat_id, prompt, text, sources=sources_info)
     except (FatalError, OSError, ValueError, TypeError, RuntimeError) as e:
         raise HTTPException(
             status_code=500,
             detail="Error encountered while answering...",
         ) from e
-    return {"answer": text, "chat_id": chat_id}
+    return {"answer": text, "chat_id": chat_id, "sources": sources_info}

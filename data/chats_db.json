@@ -11,6 +11,24 @@
       "title": "BM25 vs embeddings",
       "created_at": "2025-10-16T11:20:00Z",
       "updated_at": "2025-10-16T11:21:45Z"
+    },
+    {
+      "chat_id": "cf654f11-a87c-4bb0-9dfe-80c97e1fb955",
+      "title": "What are my grades at 42 Lisbon?",
+      "created_at": "2026-10-25T15:25:51.577754+00:00",
+      "updated_at": "2026-10-25T15:25:51.577754+00:00"
+    },
+    {
+      "chat_id": "cae9c5c5-d232-4fa9-b3dd-35c4c12ca96e",
+      "title": "What do you thing about my cv for a DevOps/Backend position?",
+      "created_at": "2026-10-25T15:26:33.227897+00:00",
+      "updated_at": "2026-10-25T15:26:33.227897+00:00"
+    },
+    {
+      "chat_id": "fc586717-2060-4668-86b2-642215027c95",
+      "title": "Quais as minhas notas do rank 4?",
+      "created_at": "2026-10-27T11:36:29.374258+00:00",
+      "updated_at": "2026-10-27T11:37:06.446276+00:00"
     }
   ],
   "messages": {
@@ -36,6 +54,79 @@
         "role": "assistant",
         "content": "BM25 é busca lexical (termos), embeddings são busca semântica (vetores). Neste projeto usa-se BM25.",
         "created_at": "2025-10-16T11:21:45Z"
+      }
+    ],
+    "cf654f11-a87c-4bb0-9dfe-80c97e1fb955": [
+      {
+        "role": "user",
+        "content": "What are my grades at 42 Lisbon?",
+        "created_at": "2026-10-25T15:25:51.577754+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Based on the provided transcript for **Diogo Luís Botelho Silva**, here are the grades for the Core Curriculum projects:\n\n**Rank 0**\n*   **Libft**: 125\n\n**Rank 1**\n*   **ft_printf**: 100\n*   **get_next_line**: 100\n*   **Born2beroot**: 125\n\n**Rank 2**\n*   **push_swap**: 84\n*   **A-Maze-ing**: 100\n*   **Py Module 00**: 100\n*   **Py Module 01**: 100\n*   **Py Module 02**: 100\n*   **Py Module 03**: 100\n*   **Py Module 04**: 100\n*   **Py Module 05**: 100\n*   **Py Module 06**: 100\n*   **Py Module 07**: 100\n*   **Py Module 08**: 100\n*   **Py Module 09**: 100\n*   **Py Module 10**: 100\n\n**Rank 3**\n*   **Call Me Maybe**: 105\n*   **Codexion**: 100\n*   **Fly-in**: 125\n\n**Rank 4**\n*   **NetPractice**: 100\n*   **RAG against the machine**: 110\n*   **Pac-Man**: 100\n\n*Note: Grades are on a scale from 0 to 100, with bonuses possible for exceptional submissions.*",
+        "created_at": "2026-10-25T15:25:51.577754+00:00"
+      }
+    ],
+    "cae9c5c5-d232-4fa9-b3dd-35c4c12ca96e": [
+      {
+        "role": "user",
+        "content": "What do you thing about my cv for a DevOps/Backend position?",
+        "created_at": "2026-10-25T15:26:33.227897+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Based on the provided sources, here is an assessment of your CV for a DevOps/Backend position:\n\n**Strengths:**\n*   **Relevant Technical Skills:** You list strong backend and DevOps technologies, including **Go, Python, C, TypeScript, Docker, Linux, SQL (MySQL/PostgreSQL), and Google Cloud (GCP)** [4].\n*   **Practical DevOps Experience:** Your **CLOUD-HOSTING** project demonstrates concrete DevOps skills, such as deploying full-stack apps with Docker, configuring GCP VMs with firewalls (VPC + UFW), setting up Nginx as a reverse proxy, and building a CI/CD pipeline with linting, testing, and image publishing [4].\n*   **Backend & API Development:** The **RAG against the machine** project shows experience building RESTful APIs with FastAPI and handling document indexing/querying [4]. The **GO-CHAT** project highlights concurrent programming and networking using Go’s net package and goroutines [4].\n*   **Full-Stack Exposure:** Your internship as a Full Stack Web Developer and projects like CLOUD-HOSTING (React, NestJS) show you can work across the stack, which is valuable for backend roles that require frontend integration [4].\n*   **Academic Foundation:** Your 42 Lisbon transcript shows completion of relevant core projects like **NetPractice** (IP routing/subnetting), **Codexion** (concurrent programming in C), and **RAG against the machine** [1, 2].\n\n**Areas for Improvement/Consideration:**\n*   **Project Dates:** Some projects (CLOUD-HOSTING, PAC-MAN) are dated **October 2026** and **June 2026**, which are in the future relative to the transcript issue date (23.10.2026) and current context. Ensure these dates are accurate or reflect completed work if applying now [4].\n*   **DevOps Depth:** While you have GCP and Docker experience, the CV doesn’t explicitly mention infrastructure-as-code tools (e.g., Terraform, Ansible) or container orchestration (e.g., Kubernetes), which are often expected in dedicated DevOps roles. Your experience is strong for a **Backend Developer with DevOps skills** or a **Cloud/DevOps Engineer** with a backend focus.\n*   **Quantifiable Impact:** The internship mentions achieving a \"maximum evaluation (20/20)\" [4], which is good. Adding more metrics to your projects (e.g., \"reduced deployment time by X%,\" \"handled Y concurrent connections\") could strengthen the impact.\n\n**Overall:**\nYour CV is **strong for a Backend Developer role with DevOps/Cloud responsibilities**. It clearly demonstrates hands-on experience with cloud deployment, CI/CD, networking, and backend API development. For a pure DevOps role, you might want to emphasize any infrastructure-as-code or orchestration experience if you have it, or position yourself as a **Backend/Cloud Engineer**.",
+        "created_at": "2026-10-25T15:26:33.227897+00:00"
+      }
+    ],
+    "fc586717-2060-4668-86b2-642215027c95": [
+      {
+        "role": "user",
+        "content": "Quais as minhas notas do rank 4?",
+        "created_at": "2026-10-27T11:36:29.374258+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Com base nos documentos fornecidos, você **não possui notas** para os projetos do Rank 4.\n\nO seu histórico acadêmico indica que o \"Core Curriculum\" está **\"in progress\"** (em andamento) e a data de conclusão está em branco. Os projetos listados no Rank 4 são:\n\n*   **NetPractice**\n*   **RAG against the machine**\n*   **Pac-Man**\n\nComo você ainda não concluiu o currículo, essas notas ainda não foram atribuídas.",
+        "created_at": "2026-10-27T11:36:29.374258+00:00",
+        "sources": [
+          {
+            "file_path": "data/files/dc494b2b7d744ed7ad75f5ea547298b1_transcript-42.pdf",
+            "document_id": "dc494b2b7d744ed7ad75f5ea547298b1_transcript-42.pdf",
+            "count": 3,
+            "original_name": "transcript-42.pdf"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "quais as notas desses projetos",
+        "created_at": "2026-10-27T11:36:51.142201+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "Com base nos documentos fornecidos, **não há notas atribuídas** para os projetos do Rank 4 (NetPractice, RAG against the machine e Pac-Man).\n\nO seu histórico acadêmico indica que o \"Core Curriculum\" está **\"in progress\"** (em andamento) e a data de conclusão está em branco. Portanto, as notas para esses projetos ainda não foram registradas.",
+        "created_at": "2026-10-27T11:36:51.142201+00:00",
+        "sources": []
+      },
+      {
+        "role": "user",
+        "content": "qual a grade?",
+        "created_at": "2026-10-27T11:37:06.446276+00:00"
+      },
+      {
+        "role": "assistant",
+        "content": "As notas dos projetos do Rank 4 são:\n\n*   **NetPractice**: 100\n*   **RAG against the machine**: 110\n*   **Pac-Man**: 100",
+        "created_at": "2026-10-27T11:37:06.446276+00:00",
+        "sources": [
+          {
+            "file_path": "data/files/dc494b2b7d744ed7ad75f5ea547298b1_transcript-42.pdf",
+            "document_id": "dc494b2b7d744ed7ad75f5ea547298b1_transcript-42.pdf",
+            "count": 3,
+            "original_name": "transcript-42.pdf"
+          }
+        ]
       }
     ]
   }

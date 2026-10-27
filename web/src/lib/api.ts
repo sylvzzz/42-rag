@@ -27,7 +27,7 @@ export interface ChatHistoryResponse {
 
 export interface AskResponse {
   answer: string
-  sources: Array<{ document_id: string; text: string }>
+  sources: Array<{ document_id: string; text?: string; file_path?: string; count?: number; original_name?: string }>
   chat_id: string
 }
 
@@ -67,7 +67,7 @@ export async function askQuestion(
   const data = await response.json()
   return {
     answer: data.answer,
-    sources: [],
+    sources: Array.isArray(data.sources) ? data.sources : [],
     chat_id: data.chat_id || chatId || "",
   }
 }
@@ -162,6 +162,21 @@ export async function getDocumentContent(documentId: string): Promise<{ document
   const response = await fetch(`${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/content`)
   if (!response.ok) {
     throw new Error('Failed to fetch document content')
+  }
+  return response.json()
+}
+
+export async function searchSources(
+  question: string,
+  howMany = 5
+): Promise<{ sources: Array<{ document_id: string; file_path?: string; count?: number }>; chunks: any[] }> {
+  const params = new URLSearchParams({
+    prompt: question,
+    k: String(howMany),
+  })
+  const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`)
+  if (!response.ok) {
+    throw new Error('Failed to search sources')
   }
   return response.json()
 }
